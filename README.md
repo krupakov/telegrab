@@ -15,7 +15,7 @@ Make sure to download and install these before launching.
 
 # Some examples
 
-First you need to include `"telegrab.hpp"` to your **main.cpp** file.
+First you need to include [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp) to your **main.cpp** file.
 
 Usually **main.cpp** file will look like this:
 
