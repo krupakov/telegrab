@@ -1,0 +1,16 @@
+apt-get update
+sudo apt-get install perl build-essential libcurl3 -y
+wget -c https://www.openssl.org/source/openssl-1.1.1d.tar.gz
+tar -xzvf openssl-1.1.1d.tar.gz
+cd openssl-1.1.1d
+./config
+make
+sudo make install
+cd ..
+wget -c curl.haxx.se/download/curl-7.67.0.tar.gz
+tar xfv curl-7.67.0.tar.gz
+cd curl-7.67.0
+chmod +x configure
+./configure --with-openssl=/usr/local/ssl
+make
+sudo make install
