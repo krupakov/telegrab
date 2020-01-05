@@ -1,0 +1,9 @@
+{
+	"token":"your_bot_token",
+	"polling":
+	{
+		"interval":0,
+		"retryTimeout":10
+	},
+	"last_update_id":0
+}
