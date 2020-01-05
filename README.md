@@ -74,7 +74,7 @@ void Telegrab::Instructions()
   {
     content message;
     message.text = data.text;
-    // Send (message_id) (chat_id)
+    // Send (message_id) to (chat_id)
     send(message, data.chat_id);
   }
 }
