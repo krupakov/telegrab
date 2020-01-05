@@ -65,7 +65,7 @@ In which `token` - Telegram Bot API token.
 
 `limit` - Limits the number of updates to be retrieved (1-100).
 
-`timeout` - Timeout in seconds for long polling. Defaults to 0, i.e. usual short polling.
+`timeout` - Timeout in seconds for long polling (0 - short polling).
 
 `retryTimeout` - Reconnecting timeout (seconds). 
 
