@@ -1,6 +1,6 @@
 Telegrab is easy-to-use C++11 library for Telegram Bot API.
 
-The library itself consists of a single header file licensed under the MIT license.
+The library itself consists of a single header file [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp).
 
 * Third-party libraries
 * Some examples
