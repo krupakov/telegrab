@@ -529,14 +529,14 @@ void Telegrab::start()
 		std::cout << "\tThe bot is running...\n\tChecking for updates..." << std::endl;
 		while (true)
 		{
-			if (interval > 0)
-				std::this_thread::sleep_for(std::chrono::seconds(interval));
 			if (!waitForUpdates())
 			{
 				std::cout << "\t| Error! Failed to connect. Reconnecting in " << retryTimeout << " seconds..." << std::endl;
 				if (retryTimeout > 0)
 					std::this_thread::sleep_for(std::chrono::seconds(retryTimeout));
 			}
+			if (interval > 0)
+				std::this_thread::sleep_for(std::chrono::seconds(interval));
 		}
 	}
 }
