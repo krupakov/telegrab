@@ -226,7 +226,7 @@ String (text or filename or file_id):
 
 `caption`
 
-Vector<string> (contains all bot commands from the message):
+Vector<*string*> (contains all entities from the message, i.e. commands, hashtags etc.):
 
 `commands`
 
