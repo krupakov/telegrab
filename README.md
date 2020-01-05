@@ -226,7 +226,7 @@ String (text or filename or file_id):
 
 `caption`
 
-Vector (contains all bot commands from the message):
+Vector<string> (contains all bot commands from the message):
 
 `commands`
 
