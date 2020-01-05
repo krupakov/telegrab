@@ -5,7 +5,7 @@ The library itself consists of a single header file licensed under the MIT licen
 * Third-party libraries
 * Some examples
 * Launch
-* Basic methods
+* Basic methods and data types
 
 # Third-party libraries
 
@@ -198,7 +198,55 @@ How to kill a process:
 
 **PID** you can find using the `ps aux` command.
 
-# Basic methods
+# Basic methods and data types
+
+## Data
+
+### Incoming message
+
+Integer:
+
+`chat_id` and `message_id`
+
+String (text or filename or file_id):
+
+`photo`
+
+`video`
+
+`document`
+
+`text`
+
+`audio`
+
+`sticker`
+
+`voice`
+
+`caption`
+
+Vector (contains all bot commands from the message):
+
+`commands`
+
+### Upcoming message
+
+String (text or filename or file_id):
+
+`photo`
+
+`video`
+
+`document`
+
+`text`
+
+`audio`
+
+`sticker`
+
+## Methods
 
 ### Send
 
