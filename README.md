@@ -48,11 +48,13 @@ Usually **config.json** file will look like this:
 
 ```json
 {
-  "token":"your_bot_token",
+  "token":"bot_token",
   "polling":
   {
     "interval":0,
-    "retryTimeout":10
+    "limit":100,
+    "timeout":30,
+    "retryTimeout":30
   },
   "last_update_id":0
 }
@@ -60,6 +62,10 @@ Usually **config.json** file will look like this:
 In which `token` - Telegram Bot API token.
 
 `interval` - How often check updates (seconds).
+
+`limit` - Limits the number of updates to be retrieved (1-100).
+
+`timeout` - Timeout in seconds for long polling. Defaults to 0, i.e. usual short polling.
 
 `retryTimeout` - Reconnecting timeout (seconds). 
 
