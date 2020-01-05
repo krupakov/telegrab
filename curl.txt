@@ -1,5 +1,5 @@
-apt-get update
-sudo apt-get install perl build-essential libcurl3 -y
+sudo apt-get update
+sudo apt-get install perl build-essential -y
 wget -c https://www.openssl.org/source/openssl-1.1.1d.tar.gz
 tar -xzvf openssl-1.1.1d.tar.gz
 cd openssl-1.1.1d
@@ -14,3 +14,4 @@ chmod +x configure
 ./configure --with-openssl=/usr/local/ssl
 make
 sudo make install
+sudo apt-get install libcurl3 -y
