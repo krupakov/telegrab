@@ -1,34 +1,31 @@
 /*
-
 ╔════╗╔═══╗╔╗   ╔═══╗╔═══╗╔═══╗╔═══╗╔══╗
 ║╔╗╔╗║║╔══╝║║   ║╔══╝║╔═╗║║╔═╗║║╔═╗║║╔╗║  C++11 Telegram Bot API
-╚╝║║╚╝║╚══╗║║   ║╚══╗║║ ╚╝║╚═╝║║║ ║║║╚╝╚╗ version 0.5
+╚╝║║╚╝║╚══╗║║   ║╚══╗║║ ╚╝║╚═╝║║║ ║║║╚╝╚╗ version 0.9
   ║║  ║╔══╝║║ ╔╗║╔══╝║║╔═╗║╔╗╔╝║╚═╝║║╔═╗║ https://github.com/krupakov/telegrab
   ║║  ║╚══╗║╚═╝║║╚══╗║╚╩═║║║║╚╗║╔═╗║║╚═╝║
   ╚╝  ╚═══╝╚═══╝╚═══╝╚═══╝╚╝╚═╝╚╝ ╚╝╚═══╝
-
 MIT License
 
-Copyright (c) 2020 Gleb Krupakov.
+Copyright (c) 2020 Gleb Krupakov
 
-Permission is hereby  granted, free of charge, to any  person obtaining a copy
-of this software and associated  documentation files (the "Software"), to deal
-in the Software  without restriction, including without  limitation the rights
-to  use, copy,  modify, merge,  publish, distribute,  sublicense, and/or  sell
-copies  of  the Software,  and  to  permit persons  to  whom  the Software  is
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 
-THE SOFTWARE  IS PROVIDED "AS  IS", WITHOUT WARRANTY  OF ANY KIND,  EXPRESS OR
-IMPLIED,  INCLUDING BUT  NOT  LIMITED TO  THE  WARRANTIES OF  MERCHANTABILITY,
-FITNESS FOR  A PARTICULAR PURPOSE AND  NONINFRINGEMENT. IN NO EVENT  SHALL THE
-AUTHORS  OR COPYRIGHT  HOLDERS  BE  LIABLE FOR  ANY  CLAIM,  DAMAGES OR  OTHER
-LIABILITY, WHETHER IN AN ACTION OF  CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE  OR THE USE OR OTHER DEALINGS IN THE
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
 */
 
 #include <string>
@@ -91,7 +88,9 @@ public:
 	std::string download(std::string file_id);
 	void start();
 private:
+	int limit;
 	int interval;
+	int timeout;
 	int retryTimeout;
 	int last_update_id;
 	std::string basic_url;
@@ -120,7 +119,9 @@ Telegrab::Telegrab(std::string str)
 		{
 			json config = json::parse(file);
 			last_update_id = config["last_update_id"];
+			limit = config["polling"]["limit"];
 			interval = config["polling"]["interval"];
+			timeout = config["polling"]["timeout"];
 			retryTimeout = config["polling"]["retryTimeout"];
 
 			std::string temp = config["token"];
@@ -138,7 +139,9 @@ Telegrab::Telegrab(std::string str)
 		{
 			json config = json::parse(file);
 			last_update_id = config["last_update_id"];
+			limit = config["polling"]["limit"];
 			interval = config["polling"]["interval"];
+			timeout = config["polling"]["timeout"];
 			retryTimeout = config["polling"]["retryTimeout"];
 			file.close();
 		}
@@ -148,8 +151,10 @@ Telegrab::Telegrab(std::string str)
 			json temp;
 			temp["token"] = str;
 			temp["last_update_id"] = 0; last_update_id = 0;
+			temp["polling"]["limit"] = 100; limit = 100;
 			temp["polling"]["interval"] = 0; interval = 0;
-			temp["polling"]["retryTimeout"] = 10; retryTimeout = 10;
+			temp["polling"]["timeout"] = 30; timeout = 30;
+			temp["polling"]["retryTimeout"] = 30; retryTimeout = 30;
 			file << temp;
 			file.close();
 		}
@@ -172,11 +177,17 @@ bool Telegrab::waitForUpdates()
 {
 	cleardata();
 	std::string url = basic_url + "/getUpdates";
+	std::string post_url = "limit=" + std::to_string(limit);
+	if (timeout > 0)
+		post_url += "&timeout=" + std::to_string(timeout);
+	if (last_update_id > 0)
+		post_url += "&offset=" + std::to_string(last_update_id + 1);
 	if (curl)
 	{
 		buffer = "";
-		curl_easy_setopt(curl, CURLOPT_POST, 0);
+		curl_easy_setopt(curl, CURLOPT_POST, 1);
     	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_url.c_str());
 	    res = curl_easy_perform(curl);
 	    if (res != CURLE_OK)
 	    {
@@ -188,8 +199,6 @@ bool Telegrab::waitForUpdates()
 		{
 			for (const auto& element:file["result"])
 			{
-				if (element["update_id"] <= last_update_id)
-					continue;
 				std::cout << "\tNew message from " << element["message"]["from"]["first_name"];
 				std::cout << "(" << element["message"]["chat"]["id"] << ")." << std::endl;
 				last_update_id = element["update_id"];
@@ -518,13 +527,13 @@ void Telegrab::start()
 	if (!basic_url.empty())
 	{
 		std::cout << "\tThe bot is running...\n\tChecking for updates..." << std::endl;
-		while (1)
+		while (true)
 		{
 			if (interval > 0)
 				std::this_thread::sleep_for(std::chrono::seconds(interval));
 			if (!waitForUpdates())
 			{
-				std::cout << "\tReconnecting in " << retryTimeout << " seconds." << std::endl;
+				std::cout << "\t| Error! Failed to connect. Reconnecting in " << retryTimeout << " seconds..." << std::endl;
 				if (retryTimeout > 0)
 					std::this_thread::sleep_for(std::chrono::seconds(retryTimeout));
 			}
