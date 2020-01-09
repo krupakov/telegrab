@@ -258,7 +258,7 @@ Vector<*string*> (contains all entities from the message, i.e. commands, hashtag
 
 ### Upcoming message
 
-String (text or filename or file_id):
+String (text or filename or file_id or URL):
 
 `photo`
 
@@ -292,4 +292,4 @@ Forward a message
 
 Download a file (returns the path to the file with the name included)
 
-`string download(string file_id)`
+`string download(string given)`
