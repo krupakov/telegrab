@@ -102,7 +102,9 @@ void Telegrab::Instructions()
 }
 ```
 
-### Simple echo bot with an image
+### Simple echo bot with a file
+
+How you do this depends on whether you want to download the file or not:
 
 ```C++
 void Telegrab::Instructions()
@@ -110,13 +112,12 @@ void Telegrab::Instructions()
   if (!data.photo.empty())
   {
     content message;
-    // How you do this depends on whether you want to download the file or not
-    // Using file_id of the original image (preferred)
+    // Using file_id of the original image (without downloading)
     message.photo = data.photo;
     message.text = "This photo was sent by its file_id";
     send(message, data.chat_id);
 
-    // Using the name of the downloaded image
+    // Using the path to the downloaded image
     message.photo = download(data.photo);
     message.text = "This photo was downloaded";
     send(message, data.chat_id);
@@ -124,11 +125,24 @@ void Telegrab::Instructions()
 }
 ```
 
-You can also send your own image, using the full path to the file as an argument:
+You can also send your own file, using the full path or URL:
 
 ```C++
-message.photo = "image.jpg";
-send(message, data.chat_id);
+void Telegrab::Instructions()
+{
+  content message;
+  // Upload local file
+  message.photo = "photos/image.jpg";
+  send(message, data.chat_id);
+
+  // Download and send image
+  message.photo = download("https://something.com/image.jpg");
+  send(message, data.chat_id);
+
+  // Send image without downloading using Telegram server (5 MB max size for photos and 20 MB max for other types of content)
+  message.photo = "https://something.com/image.jpg";
+  send(message, data.chat_id);
+}
 ```
 
 ### Message reply
@@ -147,20 +161,26 @@ void Telegrab::Instructions()
 }
 ```
 
-### How to use commands
+### How to use special objects (commands, hashtags, etc.)
 
 ```C++
 void Telegrab::Instructions()
 {
-  for (auto command = data.commands.begin(); command != data.commands.end(); ++command)
-  {
-    if (*command == "/start")
-    {
-      content message;
-      message.text = "Hello world!";
-      send(message, data.chat_id);
-    }
-  }
+  for (auto entity = data.entities.begin(); entity != data.entities.end(); ++entity)
+	{
+		if (*entity == "/start")
+		{
+			content message;
+			message.text = "Hello world!";
+			send(message, data.chat_id);
+		}
+		if (*entity == "#example")
+		{
+			content message;
+			message.text = "Example!";
+			send(message, data.chat_id);
+		}
+	}
 }
 ```
 
@@ -232,9 +252,9 @@ String (text or filename or file_id):
 
 `caption`
 
-Vector<*string*> (contains all entities from the message, i.e. commands, hashtags etc.):
+Vector<*string*> (contains all entities from the message, i.e. commands, hashtags, etc.):
 
-`commands`
+`entities`
 
 ### Upcoming message
 
