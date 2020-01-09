@@ -85,7 +85,7 @@ public:
 	~Telegrab();
 	void send(content message, int chat_id, int reply_to_message_id = 0);
 	void forward(int message_id, int chat_id_from, int chat_id_to);
-	std::string download(std::string file_id);
+	std::string download(std::string given);
 	void start();
 private:
 	int limit;
