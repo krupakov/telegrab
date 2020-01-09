@@ -167,20 +167,20 @@ void Telegrab::Instructions()
 void Telegrab::Instructions()
 {
   for (auto entity = data.entities.begin(); entity != data.entities.end(); ++entity)
-	{
-		if (*entity == "/start")
-		{
-			content message;
-			message.text = "Hello world!";
-			send(message, data.chat_id);
-		}
-		if (*entity == "#example")
-		{
-			content message;
-			message.text = "Example!";
-			send(message, data.chat_id);
-		}
-	}
+  {
+    if (*entity == "/start")
+    {
+      content message;
+      message.text = "Hello world!";
+      send(message, data.chat_id);
+    }
+    if (*entity == "#example")
+    {
+      content message;
+      message.text = "Example!";
+      send(message, data.chat_id);
+    }
+  }
 }
 ```
 
