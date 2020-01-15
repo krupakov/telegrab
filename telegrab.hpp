@@ -1,7 +1,7 @@
 /*
 ╔════╗╔═══╗╔╗   ╔═══╗╔═══╗╔═══╗╔═══╗╔══╗
 ║╔╗╔╗║║╔══╝║║   ║╔══╝║╔═╗║║╔═╗║║╔═╗║║╔╗║  C++11 Telegram Bot API
-╚╝║║╚╝║╚══╗║║   ║╚══╗║║ ╚╝║╚═╝║║║ ║║║╚╝╚╗ version 0.9.1
+╚╝║║╚╝║╚══╗║║   ║╚══╗║║ ╚╝║╚═╝║║║ ║║║╚╝╚╗ version 0.9.2
   ║║  ║╔══╝║║ ╔╗║╔══╝║║╔═╗║╔╗╔╝║╚═╝║║╔═╗║ https://github.com/krupakov/telegrab
   ║║  ║╚══╗║╚═╝║║╚══╗║╚╩═║║║║╚╗║╔═╗║║╚═╝║
   ╚╝  ╚═══╝╚═══╝╚═══╝╚═══╝╚╝╚═╝╚╝ ╚╝╚═══╝
@@ -41,8 +41,8 @@ using json = nlohmann::json;
 
 struct incoming
 {
-	int chat_id;
-	int message_id;
+	unsigned int chat_id;
+	unsigned int message_id;
 	std::string photo;
 	std::string video;
 	std::string document;
@@ -83,16 +83,16 @@ class Telegrab
 public:
 	Telegrab(std::string token);
 	~Telegrab();
-	void send(content message, int chat_id, int reply_to_message_id = 0);
-	void forward(int message_id, int chat_id_from, int chat_id_to);
+	void send(content message, unsigned int chat_id, unsigned int reply_to_message_id = 0);
+	void forward(unsigned int message_id, unsigned int chat_id_from, unsigned int chat_id_to);
 	std::string download(std::string given);
 	void start();
 private:
-	int limit;
-	int interval;
-	int timeout;
-	int retryTimeout;
-	int last_update_id;
+	unsigned short int limit;
+	unsigned short int interval;
+	unsigned short int timeout;
+	unsigned short int retryTimeout;
+	unsigned int last_update_id;
 	std::string basic_url;
 	std::string download_url;
 	std::string buffer;
@@ -106,10 +106,12 @@ private:
 	void Instructions();
 	void cleardata();
 	bool waitForUpdates();
-	bool sendFile(std::string name, std::string text, int chat_id, int type, bool caption, int reply_to_message_id);
+	bool sendFile(std::string name, std::string text, unsigned int chat_id, unsigned char type, bool caption, unsigned int reply_to_message_id);
+
+	bool fatalError;
 };
 
-Telegrab::Telegrab(std::string str)
+Telegrab::Telegrab(std::string str):fatalError(false)
 {
 	if (str.find(".json") != std::string::npos)
 	{
@@ -129,7 +131,8 @@ Telegrab::Telegrab(std::string str)
 			download_url = "https://api.telegram.org/file/bot" + temp + "/";
 			file.close();
 		}
-		else std::cout << "\t| Error! Can't open " << str << ". It is recommended to restart the program." << std::endl;
+		else
+			{ std::cerr << "\t| Error! Can't open " << str << "." << std::endl; fatalError = true; }
 	}
 	else
 	{
@@ -160,21 +163,24 @@ Telegrab::Telegrab(std::string str)
 				file << temp;
 				file.close();
 			}
-			else std::cout << "\t| Error! Unable to create config file. It is recommended to restart the program." << std::endl;
+			else
+				{ std::cerr << "\t| Error! Unable to create config file." << std::endl; fatalError = true; }
 		}
 		basic_url = "https://api.telegram.org/bot" + str;
 		download_url = "https://api.telegram.org/file/bot" + str + "/";
 	}
-	int err = chmod("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	short int err = chmod("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 	if (err == -1)
 		if (mkdir("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
-			std::cout << "\t| Error! Unable to create download folder. It is recommended to restart the program." << std::endl;
+			{ std::cerr << "\t| Error! Unable to create download folder." << std::endl; fatalError = true; }
 
 	curl_global_init(CURL_GLOBAL_DEFAULT);
 	curl = curl_easy_init();
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriter);
 	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	if (!curl)
+		fatalError = true;
 }
 Telegrab::~Telegrab()
 {
@@ -184,6 +190,7 @@ Telegrab::~Telegrab()
 bool Telegrab::waitForUpdates()
 {
 	cleardata();
+	buffer = "";
 	std::string current;
 	std::string url = basic_url + "/getUpdates";
 	std::string post_url = "limit=" + std::to_string(limit);
@@ -191,96 +198,87 @@ bool Telegrab::waitForUpdates()
 		post_url += "&timeout=" + std::to_string(timeout);
 	if (last_update_id > 0)
 		post_url += "&offset=" + std::to_string(last_update_id + 1);
-	if (curl)
+	curl_easy_setopt(curl, CURLOPT_POST, 1);
+	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_url.c_str());
+	res = curl_easy_perform(curl);
+	if (res != CURLE_OK)
+		{ std::cerr << "\t| Error! Can't get updates." << std::endl; return false; }
+	json file = json::parse(buffer);
+	if (file["ok"] && !file["result"].empty())
 	{
-		buffer = "";
-		curl_easy_setopt(curl, CURLOPT_POST, 1);
-		curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_url.c_str());
-		res = curl_easy_perform(curl);
-		if (res != CURLE_OK)
+		for (const auto& element:file["result"])
 		{
-			std::cout << "\t| Error! Can't get updates." << std::endl;
-			return false;
-		}
-		json file = json::parse(buffer);
-		if (file["ok"] && !file["result"].empty())
-		{
-			for (const auto& element:file["result"])
-			{
-				current = "message";
-				if (element.count("edited_message") != 0)
-					current = "edited_message";
-				std::cout << "\tNew message from " << element[current]["from"]["first_name"];
-				std::cout << "(" << element[current]["chat"]["id"] << ")." << std::endl;
-				last_update_id = element["update_id"];
-				data.chat_id = element[current]["chat"]["id"];
-				data.message_id = element[current]["message_id"];
-				if (element[current].count("photo") != 0)
-					for (const auto& image:element[current]["photo"])
-					{
-						if (image.count("file_size") != 0)
-							if (image["file_size"] > 20900000)
-								break;
-						data.photo = image["file_id"];
-					}
-				else data.photo = "";
-				if (element[current].count("video") != 0)
-					data.video = element[current]["video"]["file_id"];
-				else data.video = "";
-				if (element[current].count("document") != 0)
-					data.document = element[current]["document"]["file_id"];
-				else data.document = "";
-				if (element[current].count("text") != 0)
-					data.text = element[current]["text"];
-				else data.text = "";
-				if (element[current].count("audio") != 0)
-					data.audio = element[current]["audio"]["file_id"];
-				else data.audio = "";
-				if (element[current].count("sticker") != 0)
-					data.sticker = element[current]["sticker"]["file_id"];
-				else data.sticker = "";
-				if (element[current].count("voice") != 0)
-					data.voice = element[current]["voice"]["file_id"];
-				else data.voice = "";
-				if (element[current].count("caption") != 0)
-					data.caption = element[current]["caption"];
-				else data.caption = "";
-				if (element[current].count("entities") != 0)
+			current = "message";
+			if (element.count("edited_message") != 0)
+				current = "edited_message";
+			std::cout << "\tNew message from " << element[current]["from"]["first_name"];
+			std::cout << "(" << element[current]["chat"]["id"] << ")." << std::endl;
+			last_update_id = element["update_id"];
+			data.chat_id = element[current]["chat"]["id"];
+			data.message_id = element[current]["message_id"];
+			if (element[current].count("photo") != 0)
+				for (const auto& image:element[current]["photo"])
 				{
-					int k = 0;
-					for (const auto& entity:element[current]["entities"])
-					{
-						data.entities.push_back("");
-						int t1 = entity["offset"];
-						int t2 = entity["length"];
-						for (int i = t1; i < (t1 + t2); i++)
-							data.entities[k] += data.text[i];
-						k++;
-					}
+					if (image.count("file_size") != 0)
+						if (image["file_size"] > 20900000)
+							break;
+					data.photo = image["file_id"];
 				}
-				Instructions();
-			}
-			std::ifstream file(config_filename);
-			if (file.is_open())
+			else data.photo = "";
+			if (element[current].count("video") != 0)
+				data.video = element[current]["video"]["file_id"];
+			else data.video = "";
+			if (element[current].count("document") != 0)
+				data.document = element[current]["document"]["file_id"];
+			else data.document = "";
+			if (element[current].count("text") != 0)
+				data.text = element[current]["text"];
+			else data.text = "";
+			if (element[current].count("audio") != 0)
+				data.audio = element[current]["audio"]["file_id"];
+			else data.audio = "";
+			if (element[current].count("sticker") != 0)
+				data.sticker = element[current]["sticker"]["file_id"];
+			else data.sticker = "";
+			if (element[current].count("voice") != 0)
+				data.voice = element[current]["voice"]["file_id"];
+			else data.voice = "";
+			if (element[current].count("caption") != 0)
+				data.caption = element[current]["caption"];
+			else data.caption = "";
+			if (element[current].count("entities") != 0)
 			{
-				json config = json::parse(file);
-				config["last_update_id"] = last_update_id;
-				file.close();
-				std::ofstream newfile(config_filename, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
-				if (newfile.is_open())
+				unsigned short int k = 0;
+				for (const auto& entity:element[current]["entities"])
 				{
-					newfile << config;
-					newfile.close();
+					data.entities.push_back("");
+					unsigned short int t1 = entity["offset"];
+					unsigned short int t2 = entity["length"];
+					for (unsigned short int i = t1; i < (t1 + t2); i++)
+						data.entities[k] += data.text[i];
+					k++;
 				}
 			}
+			Instructions();
 		}
-		return true;
+		std::ifstream file(config_filename);
+		if (file.is_open())
+		{
+			json config = json::parse(file);
+			config["last_update_id"] = last_update_id;
+			file.close();
+			std::ofstream newfile(config_filename, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+			if (newfile.is_open())
+			{
+				newfile << config;
+				newfile.close();
+			}
+		}
 	}
-	std::cout << "\t| Error! Something wrong with cURL." << std::endl;
-	return false;
+	return true;
 }
-void Telegrab::send(content message, int chat_id, int reply_to_message_id)
+void Telegrab::send(content message, unsigned int chat_id, unsigned int reply_to_message_id)
 {
 	std::cout << "\tSending a message to " << chat_id << "..." << std::endl;
 	bool caption = false;
@@ -306,10 +304,10 @@ void Telegrab::send(content message, int chat_id, int reply_to_message_id)
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
-			std::cout << "\t| Error! Can't send a text message to " << chat_id  << "." << std::endl;
+			std::cerr << "\t| Error! Can't send a text message to " << chat_id  << "." << std::endl;
 	}
 }
-void Telegrab::forward(int message_id, int chat_id_from, int chat_id_to)
+void Telegrab::forward(unsigned int message_id, unsigned int chat_id_from, unsigned int chat_id_to)
 {
 	std::cout << "\tForwarding the message " << message_id << " to " << chat_id_to << "..." << std::endl;
 	std::string url = basic_url + "/forwardMessage";
@@ -319,9 +317,9 @@ void Telegrab::forward(int message_id, int chat_id_from, int chat_id_to)
 	curl_easy_setopt(curl, CURLOPT_POST, 1);
 	res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
-			std::cout << "\t| Error! Can't forward a message " << message_id << " to " << chat_id_to  << "." << std::endl;
+			std::cerr << "\t| Error! Can't forward a message " << message_id << " to " << chat_id_to  << "." << std::endl;
 }
-bool Telegrab::sendFile(std::string name, std::string text, int chat_id, int type, bool caption, int reply_to_message_id)
+bool Telegrab::sendFile(std::string name, std::string text, unsigned int chat_id, unsigned char type, bool caption, unsigned int reply_to_message_id)
 {
 	bool cap = caption;
 	std::string url;
@@ -347,35 +345,25 @@ bool Telegrab::sendFile(std::string name, std::string text, int chat_id, int typ
 			switch (type)
 			{
 				case 1:
-				{
 					curl_mime_name(field, "photo");
 					url = basic_url + "/sendPhoto";
 					break;
-				}
 				case 2:
-				{
 					curl_mime_name(field, "video");
 					url = basic_url + "/sendVideo";
 					break;
-				}
 				case 3:
-				{
 					curl_mime_name(field, "document");
 					url = basic_url + "/sendDocument";
 					break;
-				}
 				case 4:
-				{
 					curl_mime_name(field, "audio");
 					url = basic_url + "/sendAudio";
 					break;
-				}
 				case 5:
-				{
 					curl_mime_name(field, "sticker");
 					url = basic_url + "/sendSticker";
 					break;
-				}
 			}
 			curl_mime_filedata(field, name.c_str());
 			/* Fill in the chat_id field */
@@ -402,7 +390,7 @@ bool Telegrab::sendFile(std::string name, std::string text, int chat_id, int typ
 			curl_easy_setopt(curl_multipart, CURLOPT_MIMEPOST, form);
 			res = curl_easy_perform(curl_multipart);
 			if (res != CURLE_OK)
-				std::cout << "\t| Error! Can't send a file to " << chat_id  << ". Perhaps the file is too large." << std::endl;
+				std::cerr << "\t| Error! Can't send a file to " << chat_id  << ". Perhaps the file is too large." << std::endl;
 
 			/* clear buffer */ 
 			buffer = "";
@@ -418,35 +406,25 @@ bool Telegrab::sendFile(std::string name, std::string text, int chat_id, int typ
 		switch (type)
 		{
 			case 1:
-			{
 				url = basic_url + "/sendPhoto";
 				post_url += "&photo=" + name;
 				break;
-			}
 			case 2:
-			{
 				url = basic_url + "/sendVideo";
 				post_url += "&video=" + name;
 				break;
-			}
 			case 3:
-			{
 				url = basic_url + "/sendDocument";
 				post_url += "&document=" + name;
 				break;
-			}
 			case 4:
-			{
 				url = basic_url + "/sendAudio";
 				post_url += "&audio=" + name;
 				break;
-			}
 			case 5:
-			{
 				url = basic_url + "/sendSticker";
 				post_url += "&sticker=" + name;
 				break;
-			}
 		}
 		if (!text.empty() && !caption && type != 5)
 		{
@@ -460,7 +438,7 @@ bool Telegrab::sendFile(std::string name, std::string text, int chat_id, int typ
 		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_url.c_str());
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
-			std::cout << "\t| Error! Can't send " << name << " to " << chat_id  << "." << std::endl;
+			std::cerr << "\t| Error! Can't send " << name << " to " << chat_id  << "." << std::endl;
 	}
 	return cap;
 }
@@ -468,10 +446,12 @@ std::string Telegrab::download(std::string given)
 {
 	std::cout << "\tTrying to download " << given << "..." << std::endl;
 	buffer = "";
+	if (given.empty())
+		{ std::cerr << "\t| Error! Given string is empty." << std::endl; return ""; }
 	if (given.find(".") != std::string::npos)
 	{
 		std::string file_path;
-		int index = given.size() - 1;
+		unsigned short int index = given.size() - 1;
 		if (given[index] == '/')
 			index--;
 		for (index; index >= 0; index--)
@@ -492,10 +472,7 @@ std::string Telegrab::download(std::string given)
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriter);
 			if (res != CURLE_OK)
-			{
-				std::cout << "\t| Error! Can't download " << given << "." << std::endl;
-				return "";
-			}
+				{ std::cerr << "\t| Error! Can't download " << given << "." << std::endl; return ""; }
 			std::cout << "\tSuccessfully downloaded." << std::endl;
 			return file_path;
 		}
@@ -508,22 +485,19 @@ std::string Telegrab::download(std::string given)
 		curl_easy_setopt(curl, CURLOPT_POST, 1);
 		res = curl_easy_perform(curl);
 		if (res != CURLE_OK)
-		{
-			std::cout << "\t| Error! Can't get a file_path to download the file." << std::endl;
-			return "";
-		}
+			{ std::cerr << "\t| Error! Can't get a file_path to download the file." << std::endl; return ""; }
 		json result = json::parse(buffer);
 		if (result["ok"])
 		{
 			std::string file_path, newdir = "downloads/";
 			file_path = result["result"]["file_path"];
 			url = download_url + file_path;
-			for (int i = 0; i < file_path.size(); i++)
+			for (unsigned short int i = 0; i < file_path.size(); i++)
 				if (file_path[i] != '/')
 					newdir += file_path[i];
 				else break;
 			file_path = "downloads/" + file_path;
-			int err = chmod(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			short int err = chmod(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 			if (err == -1)
 				err = mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 			if (err != -1)
@@ -540,16 +514,13 @@ std::string Telegrab::download(std::string given)
 					curl_easy_setopt(curl, CURLOPT_WRITEDATA, &buffer);
 					curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriter);
 					if (res != CURLE_OK)
-					{
-						std::cout << "\t| Error! Can't download " << given << ". Perhaps the file is too large." << std::endl;
-						return "";
-					}
+						{ std::cerr << "\t| Error! Can't download " << given << ". Perhaps the file is too large." << std::endl; return ""; }
 					std::cout << "\tSuccessfully downloaded." << std::endl;
 					return file_path;
 				}
-				else std::cout << "\t| Error! Can't download " << given << ". Error creating new file." << std::endl;
+				else std::cerr << "\t| Error! Can't download " << given << ". Error creating new file." << std::endl;
 			}
-			else std::cout << "\t| Error! Can't create a folder for the file." << std::endl;
+			else std::cerr << "\t| Error! Can't create a folder for the file." << std::endl;
 		}
 	}
 	return "";
@@ -568,14 +539,14 @@ void Telegrab::cleardata()
 }
 void Telegrab::start()
 {
-	if (!basic_url.empty())
+	if (!fatalError && !basic_url.empty())
 	{
 		std::cout << "\tChecking for updates..." << std::endl;
 		while (true)
 		{
 			if (!waitForUpdates())
 			{
-				std::cout << "\t| Error! Failed to connect. Reconnecting in " << retryTimeout << " seconds..." << std::endl;
+				std::cerr << "\t| Error! Failed to connect. Reconnecting in " << retryTimeout << " seconds..." << std::endl;
 				if (retryTimeout > 0)
 					std::this_thread::sleep_for(std::chrono::seconds(retryTimeout));
 			}
