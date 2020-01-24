@@ -5,13 +5,15 @@ The library itself consists of a single header file [telegrab.hpp](https://githu
 * Third-party libraries
 * Some examples
 * Launch
-* Basic methods and data types
+* Basic methods and data
 
 # Third-party libraries
 
-Telegrab requires the [nlohmann::json](https://github.com/nlohmann/json), [openssl](https://github.com/openssl/openssl) and [cURL](https://github.com/curl/curl) libraries.
+Telegrab requires the [nlohmann::json](https://github.com/nlohmann/json) and [cURL](https://github.com/curl/curl) libraries.
 
-Make sure to download and install these before launching.
+Compilation with cURL requires [openssl](https://github.com/openssl/openssl).
+
+Make sure to download / install these before launching.
 
 # Some examples
 
@@ -210,21 +212,21 @@ Install **build-essential** first:
 
 `sudo apt-get install build-essential -y`
 
-Compilation:
+Compiling C++11 with g++:
 
 `g++ -std=c++11 main.cpp -lcurl`
 
-How to start a process:
+Run .out file:
 
 `nohup ./a.out &`
 
-How to kill a process:
+Stop app (kill the process):
 
 `kill PID`
 
 **PID** you can find using the `ps aux` command.
 
-# Basic methods and data types
+# Basic methods and data
 
 ## Data
 
