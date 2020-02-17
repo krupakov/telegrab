@@ -271,7 +271,7 @@ bool Telegrab::waitForUpdates()
 				}
 			}
 			std::thread msg(&Telegrab::Instructions, this, message_data);
-        	msg.detach();
+			msg.detach();
 		}
 		std::ifstream file(config_filename);
 		if (file.is_open())
@@ -478,6 +478,7 @@ std::string Telegrab::download(std::string given)
 		std::ifstream tryExistence(file_path);
 		if (tryExistence.is_open())
 		{
+			tryExistence.close();
 			std::string type;
 			for (unsigned short int i = file_path.size() - 1; i >= 0; i--)
 			{
