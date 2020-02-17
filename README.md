@@ -24,7 +24,7 @@ Usually **main.cpp** file will look like this:
 ```C++
 #include "telegrab.hpp"
 
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   // Instructions for the bot
 }
@@ -76,7 +76,7 @@ In which `token` - Telegram Bot API token.
 ### Simple echo bot
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   if (!data.text.empty())
   {
@@ -91,7 +91,7 @@ void Telegrab::Instructions()
 ### Simple echo bot that forwards a message
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   if (!data.text.empty())
   {
@@ -109,7 +109,7 @@ void Telegrab::Instructions()
 How you do this depends on whether you want to download the file or not:
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   if (!data.photo.empty())
   {
@@ -130,7 +130,7 @@ void Telegrab::Instructions()
 You can also send your own file, using the full path or URL:
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   content message;
   // Upload local file
@@ -150,7 +150,7 @@ void Telegrab::Instructions()
 ### Message reply
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   // If the message is a reply, you can pass the ID of the original message as an argument
   if (data.text == "reply")
@@ -166,7 +166,7 @@ void Telegrab::Instructions()
 ### How to use special objects (commands, hashtags, etc.)
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   for (auto entity = data.entities.begin(); entity != data.entities.end(); ++entity)
   {
@@ -189,7 +189,7 @@ void Telegrab::Instructions()
 ### All instructions must be in the same method
 
 ```C++
-void Telegrab::Instructions()
+void Telegrab::Instructions(incoming data)
 {
   if (!data.sticker.empty())
   {
@@ -214,7 +214,7 @@ Install **build-essential** first:
 
 Compiling C++11 with g++:
 
-`g++ -std=c++11 main.cpp -lcurl`
+`g++ -std=c++11 main.cpp -lcurl -pthread`
 
 Run .out file:
 
