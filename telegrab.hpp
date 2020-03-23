@@ -32,11 +32,11 @@ SOFTWARE.
 #include <iostream>
 #include <vector>
 #include <fstream>
-#include <chrono>
 #include <thread>
 #include <mutex>
 #include <curl/curl.h>
 #include <sys/stat.h>
+#include <dirent.h>
 #include "json.hpp"
 
 struct incoming
@@ -85,19 +85,18 @@ public:
 	~Telegrab();
 	void send(content message, unsigned int chat_id, unsigned int reply_to_message_id = 0);
 	void forward(unsigned int message_id, unsigned int chat_id_from, unsigned int chat_id_to);
-	std::string download(std::string given);
 	void start();
+	std::string download(std::string given);
 private:
-	unsigned short int limit;
-	unsigned short int interval;
-	unsigned short int timeout;
-	unsigned short int retryTimeout;
+	unsigned int limit;
+	unsigned int interval;
+	unsigned int timeout;
+	unsigned int retryTimeout;
 	unsigned int last_update_id;
-	unsigned int file_clone_counter;
+	unsigned int last_file_id;
 	std::string basic_url;
 	std::string download_url;
 	std::string config_filename;
-	std::string unique;
 
 	void Instructions(incoming data);
 	bool waitForUpdates();
@@ -110,76 +109,105 @@ private:
 	std::mutex mtx;
 };
 
-Telegrab::Telegrab(std::string str):fatalError(false)
+Telegrab::Telegrab(std::string str):fatalError(false), last_file_id(1)
 {
-	if (str.find(".json") != std::string::npos)
+	try
 	{
-		config_filename = str;
-		std::ifstream file(str);
-		if (file.is_open())
+		/* Open or create config file */
+		if (str.find(".json") != std::string::npos)
 		{
-			nlohmann::json config = nlohmann::json::parse(file);
-			last_update_id = config["last_update_id"];
-			limit = config["polling"]["limit"];
-			interval = config["polling"]["interval"];
-			timeout = config["polling"]["timeout"];
-			retryTimeout = config["polling"]["retryTimeout"];
-
-			std::string temp = config["token"];
-			basic_url = "https://api.telegram.org/bot" + temp;
-			download_url = "https://api.telegram.org/file/bot" + temp + "/";
-			unique = std::to_string(rand());
-			file_clone_counter = 0;
-			file.close();
-		}
-		else
-			{ std::cerr << "\t| Error! Can't open " << str << "." << std::endl; fatalError = true; }
-	}
-	else
-	{
-		config_filename = str + ".json";
-		std::ifstream file(config_filename);
-		if (file.is_open())
-		{
-			nlohmann::json config = nlohmann::json::parse(file);
-			last_update_id = config["last_update_id"];
-			limit = config["polling"]["limit"];
-			interval = config["polling"]["interval"];
-			timeout = config["polling"]["timeout"];
-			retryTimeout = config["polling"]["retryTimeout"];
-			unique = std::to_string(rand());
-			file_clone_counter = 0;
-			file.close();
-		}
-		else
-		{
-			std::ofstream file(config_filename, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+			config_filename = str;
+			std::ifstream file(str);
 			if (file.is_open())
 			{
-				nlohmann::json temp;
-				temp["token"] = str;
-				temp["last_update_id"] = 0; last_update_id = 0;
-				temp["polling"]["limit"] = 100; limit = 100;
-				temp["polling"]["interval"] = 0; interval = 0;
-				temp["polling"]["timeout"] = 30; timeout = 30;
-				temp["polling"]["retryTimeout"] = 30; retryTimeout = 30;
-				unique = std::to_string(rand());
-				file_clone_counter = 0;
-				file << temp;
+				nlohmann::json config = nlohmann::json::parse(file);
+				last_update_id = config["last_update_id"];
+				limit = config["polling"]["limit"];
+				interval = config["polling"]["interval"];
+				timeout = config["polling"]["timeout"];
+				retryTimeout = config["polling"]["retryTimeout"];
+
+				std::string temp = config["token"];
+				basic_url = "https://api.telegram.org/bot" + temp;
+				download_url = "https://api.telegram.org/file/bot" + temp + "/";
 				file.close();
 			}
 			else
-				{ std::cerr << "\t| Error! Unable to create config file." << std::endl; fatalError = true; }
+				{ std::cerr << "\t| Error! Can't open " << str << "." << std::endl; throw 1; }
 		}
-		basic_url = "https://api.telegram.org/bot" + str;
-		download_url = "https://api.telegram.org/file/bot" + str + "/";
-	}
-	short int err = chmod("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-	if (err == -1)
-		if (mkdir("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
-			{ std::cerr << "\t| Error! Unable to create download folder." << std::endl; fatalError = true; }
+		else
+		{
+			config_filename = str + ".json";
+			std::ifstream file(config_filename);
+			if (file.is_open())
+			{
+				nlohmann::json config = nlohmann::json::parse(file);
+				last_update_id = config["last_update_id"];
+				limit = config["polling"]["limit"];
+				interval = config["polling"]["interval"];
+				timeout = config["polling"]["timeout"];
+				retryTimeout = config["polling"]["retryTimeout"];
+				file.close();
+			}
+			else
+			{
+				std::ofstream file(config_filename, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+				if (file.is_open())
+				{
+					nlohmann::json temp;
+					temp["token"] = str;
+					temp["last_update_id"] = 0; last_update_id = 0;
+					temp["polling"]["limit"] = 100; limit = 100;
+					temp["polling"]["interval"] = 0; interval = 0;
+					temp["polling"]["timeout"] = 30; timeout = 30;
+					temp["polling"]["retryTimeout"] = 30; retryTimeout = 30;
+					file << temp;
+					file.close();
+				}
+				else
+					{ std::cerr << "\t| Error! Unable to create config file." << std::endl; throw 1; }
+			}
+			basic_url = "https://api.telegram.org/bot" + str;
+			download_url = "https://api.telegram.org/file/bot" + str + "/";
+		}
 
-	curl_global_init(CURL_GLOBAL_DEFAULT);
+		/* Create 'downloads' folder */
+		if (chmod("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+			if (mkdir("downloads", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1)
+				{ std::cerr << "\t| Error! Unable to create 'downloads' folder." << std::endl; throw 1; }
+
+		/* Get ID of the last downloaded file (i.e. file_XXXX) */
+		DIR *dir;
+		struct dirent *ent;
+		if ((dir = opendir("downloads")) != NULL)
+		{
+			std::string temp = "file_", name = "";
+			while ((ent = readdir(dir)) != NULL)
+				if (ent->d_name[0] == temp[0] && ent->d_name[1] == temp[1] && ent->d_name[2] == temp[2] && ent->d_name[3] == temp[3] && ent->d_name[4] == temp[4])
+					{ name.assign(ent->d_name, strlen(ent->d_name)); break; }
+			closedir(dir);
+			if (name.size() > 5)
+			{
+				temp = "";
+				for (unsigned short i = 5; i < name.size(); i++)
+					temp += name[i];
+				last_file_id = std::stoi(temp);
+				last_file_id++;
+			}
+		}
+		else
+			{ std::cerr << "\t| Error! Unable to open 'downloads' folder." << std::endl; throw 1; }
+
+		curl_global_init(CURL_GLOBAL_DEFAULT);
+	}
+	catch (int)
+	{
+		fatalError = true;
+	}
+	catch (std::invalid_argument)
+	{
+		fatalError = true;
+	}
 }
 Telegrab::~Telegrab()
 {
@@ -295,6 +323,8 @@ void Telegrab::send(content message, unsigned int chat_id, unsigned int reply_to
 	if (!curl)
 		{ std::cerr << "\t| Error! Can't send a text message to " << chat_id  << ". cURL is not working properly." << std::endl; return; }
 	std::cout << "\tSending a message to " << chat_id << "..." << std::endl;
+	/* Since we don't know for what file in the message the text refers to,
+	we simply create a boolean 'caption', which meant to let the program know, if the text has already been sent */
 	bool caption = false;
 	if (!message.photo.empty())
 		caption = sendFile(message.photo, message.text, chat_id, 1, caption, reply_to_message_id);
@@ -463,38 +493,17 @@ std::string Telegrab::download(std::string given)
 		{ std::cerr << "\t| Error! Can't download " << given << ". cURL is not working properly." << std::endl; return ""; }
 	if (given.empty())
 		{ std::cerr << "\t| Error! Given string is empty." << std::endl; curl_easy_cleanup(curl); return ""; }
+	/* Check if the given string is a link (file_id doesn't contain dots) */
 	if (given.find(".") != std::string::npos)
 	{
-		std::string file_path;
-		unsigned short int index = given.size() - 1;
-		if (given[index] == '/')
-			index--;
-		for (index; index >= 0; index--)
-			if (given[index] != '/')
-				file_path += given[index];
-			else break;
-		std::reverse(file_path.begin(), file_path.end());
-		file_path = "downloads/" + file_path;
-		std::ifstream tryExistence(file_path);
-		if (tryExistence.is_open())
-		{
-			tryExistence.close();
-			std::string type;
-			for (unsigned short int i = file_path.size() - 1; i >= 0; i--)
-			{
-				if (file_path[i] == '/')
-					break;
-				type += file_path[i];
-			}
-			std::reverse(type.begin(), type.end());
-			mtx.lock();
-			file_clone_counter++;
-			file_path = "downloads/copy" + std::to_string(file_clone_counter) + "_" + unique + type;
-			mtx.unlock();
-		}
+		mtx.lock();
+		std::string file_path = "downloads/file_" + std::to_string(last_file_id);
+		last_file_id++;
+		mtx.unlock();
+
 		curl_easy_setopt(curl, CURLOPT_URL, given.c_str());
 		curl_easy_setopt(curl, CURLOPT_POST, 0);
-		std::ofstream file(file_path, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+		std::ofstream file(file_path, std::ios_base::out | std::ios_base::binary);
 		if (file.is_open())
 		{
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file);
@@ -525,12 +534,12 @@ std::string Telegrab::download(std::string given)
 			std::string file_path, newdir = "downloads/";
 			file_path = result["result"]["file_path"];
 			url = download_url + file_path;
-			for (unsigned short int i = 0; i < file_path.size(); i++)
+			for (unsigned int i = 0; i < file_path.size(); i++)
 				if (file_path[i] != '/')
 					newdir += file_path[i];
 				else break;
 			file_path = "downloads/" + file_path;
-			short int err = chmod(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+			short err = chmod(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 			if (err == -1)
 				err = mkdir(newdir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 			if (err != -1)
@@ -538,7 +547,7 @@ std::string Telegrab::download(std::string given)
 				curl = CurlInit();
 				if (!curl)
 					{ std::cerr << "\t| Error! Can't download " << given << ". cURL is not working properly." << std::endl; return ""; }
-				std::ofstream file(file_path, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
+				std::ofstream file(file_path, std::ios_base::out | std::ios_base::binary);
 				if (file.is_open())
 				{
 					curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
@@ -563,7 +572,7 @@ std::string Telegrab::download(std::string given)
 }
 void Telegrab::start()
 {
-	if (!fatalError && !basic_url.empty())
+	if (!fatalError)
 	{
 		std::cout << "\tChecking for updates..." << std::endl;
 		while (true)
