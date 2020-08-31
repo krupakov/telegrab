@@ -2,20 +2,38 @@ Telegrab is easy-to-use C++11 library for Telegram Bot API.
 
 The library itself consists of a single header file [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp).
 
-* Third-party libraries
-* Some examples
-* Launch
-* Basic methods and data
+* [Dependencies](#dependencies)
+* [Compilation](#compilation)
+* [Examples](#examples)
+* [Basic methods and data](#basic-methods-and-data)
 
-# Third-party libraries
+# Dependencies
 
-Telegrab requires the [nlohmann::json](https://github.com/nlohmann/json) and [cURL](https://github.com/curl/curl) libraries.
+Telegrab requires the [nlohmann::json](https://github.com/nlohmann/json) and [yhirose::cpp-httplib](https://github.com/yhirose/cpp-httplib) libraries.
 
-Compilation with cURL requires [openssl](https://github.com/openssl/openssl).
+Those are single-header libraries. Just drop them into the same folder as the [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp) file.
 
-Make sure to download / install these before launching.
+You also need to install [openssl](https://github.com/openssl/openssl).
 
-# Some examples
+NOTE: cpp-httplib currently supports only version 1.1.1.
+
+```
+sudo apt install build-essential -y
+wget -c https://www.openssl.org/source/openssl-1.1.1d.tar.gz
+tar -xzvf openssl-1.1.1d.tar.gz
+cd openssl-1.1.1d
+./config
+make
+sudo make install
+```
+
+# Compilation
+
+Compile using g++ version 4.8 or higher:
+
+`g++ -std=c++11 main.cpp -lssl -lcrypto`
+
+# Examples
 
 First you need to include [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp) to your project.
 
@@ -50,15 +68,14 @@ Usually **config.json** file will look like this:
 
 ```json
 {
-  "token":"123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
   "polling":
   {
     "interval":0,
     "limit":100,
-    "timeout":30,
+    "timeout":10,
     "retryTimeout":30
   },
-  "last_update_id":0
+  "token":"123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
 }
 ```
 In which `token` - Telegram Bot API token.
@@ -69,9 +86,7 @@ In which `token` - Telegram Bot API token.
 
 `timeout` - Timeout in seconds for long polling (0 - short polling).
 
-`retryTimeout` - Reconnecting timeout (seconds). 
-
-`last_update_id` - Must be 0 at the first launch
+`retryTimeout` - Reconnecting timeout (seconds).
 
 ### Simple echo bot
 
@@ -85,6 +100,7 @@ void Telegrab::Instructions(incoming data)
     // Send (message_id) to (chat_id)
     send(message, data.chat_id);
   }
+  ...
 }
 ```
 
@@ -101,6 +117,7 @@ void Telegrab::Instructions(incoming data)
     // Forward (message_id) from (chat_id_from) to (chat_id_to)
     forward(message_id, chat_id_from, chat_id_to);
   }
+  ...
 }
 ```
 
@@ -124,6 +141,7 @@ void Telegrab::Instructions(incoming data)
     message.text = "This photo was downloaded";
     send(message, data.chat_id);
   }
+  ...
 }
 ```
 
@@ -144,6 +162,8 @@ void Telegrab::Instructions(incoming data)
   // Send image without downloading using Telegram server (5 MB max size for photos and 20 MB max for other types of content)
   message.photo = "https://something.com/image.jpg";
   send(message, data.chat_id);
+
+  ...
 }
 ```
 
@@ -153,13 +173,16 @@ void Telegrab::Instructions(incoming data)
 void Telegrab::Instructions(incoming data)
 {
   // If the message is a reply, you can pass the ID of the original message as an argument
-  if (data.text == "reply")
+  if (data.text == "reply test")
   {
     content message;
     message.text = "This message is a reply";
     // Reply to (message_id) in (chat_id) with (message)
     send(message, data.chat_id, data.message_id);
+
+    return;
   }
+  ...
 }
 ```
 
@@ -168,21 +191,94 @@ void Telegrab::Instructions(incoming data)
 ```C++
 void Telegrab::Instructions(incoming data)
 {
-  for (auto entity = data.entities.begin(); entity != data.entities.end(); ++entity)
+  for (const auto& entity:data.entities)
   {
-    if (*entity == "/start")
+    if (entity == "/start")
     {
       content message;
       message.text = "Hello world!";
       send(message, data.chat_id);
+
+      return;
     }
-    if (*entity == "#example")
+    if (entity == "#example")
     {
       content message;
       message.text = "Example!";
       send(message, data.chat_id);
+
+      return;
     }
   }
+  ...
+}
+```
+
+### Creating a custom reply keyboard
+
+```C++
+void Telegrab::Instructions(incoming data)
+{
+  for (const auto& entity:data.entities)
+  {
+    if (entity == "/start")
+    {
+      // The Telegram keyboard consists of rows, which consist of buttons
+      ReplyKeyboardRow row_1;
+
+      // Creating button
+      KeyboardButton btn;
+
+      // Button text
+      btn.text = "Click me";
+
+      // Optional fields, 'false' by default, so you can delete these lines (for more info go to Telegram Bot API)
+      btn.request_contact = false;
+      btn.request_location = false;
+
+      // Pushing button to the row
+      row_1.push_back(btn);
+
+      // Pushing row to the keyboard
+      message.reply_keyboard.keyboard.push_back(row_1);
+
+      // Optional fields, 'false' by default, so you can delete these lines (for more info go to Telegram Bot API)
+      // resize_keyboard set to 'true' so the buttons look better
+      message.reply_keyboard.resize_keyboard = true;
+      message.reply_keyboard.one_time_keyboard = false;
+      message.reply_keyboard.selective = false;
+
+      send(message, data.chat_id);
+
+      return;
+    }
+  }
+  ...
+}
+```
+
+### How to hide a custom keyboard
+
+```C++
+void Telegrab::Instructions(incoming data)
+{
+  if (data.text.find("Click me") != std::string::npos)
+  {
+    ontent message;
+    message.text = "The custom keyboard has been removed.";
+
+    // Deleting custom keyboard
+    ReplyKeyboardHide h;
+    h.hide = true;
+    // Optional field, 'false' by default
+    h.selective = false;
+    message.hide_reply_keyboard = h;
+
+    send(message, data.chat_id);
+
+    return;
+  }
+  ...
 }
 ```
 
@@ -196,35 +292,20 @@ void Telegrab::Instructions(incoming data)
     content message;
     message.sticker = "CAADAgADSAoAAm4y2AABrGwuPYwIwBwWBA";
     send(message, data.chat_id);
+
+    return;
   }
   if (!data.document.empty())
   {
     content message;
     message.document = download(data.document);
     send(message, data.chat_id);
+
+    return;
   }
+  ...
 }
 ```
-
-# Launch
-
-Install **build-essential** first:
-
-`sudo apt-get install build-essential -y`
-
-Compiling C++11 with g++:
-
-`g++ -std=c++11 main.cpp -lcurl -pthread`
-
-Run .out file:
-
-`nohup ./a.out &`
-
-Stop app (kill the process):
-
-`kill PID`
-
-**PID** you can find using the `ps aux` command.
 
 # Basic methods and data
 
@@ -273,6 +354,10 @@ String (text or filename or file_id or URL):
 `audio`
 
 `sticker`
+
+`reply_keyboard`
+
+`hide_reply_keyboard`
 
 ## Methods
 

@@ -1,11 +1,10 @@
 {
-	"token":"bot_token",
 	"polling":
 	{
 		"interval":0,
 		"limit":100,
-		"timeout":30,
+		"timeout":10,
 		"retryTimeout":30
 	},
-	"last_update_id":0
+	"token":"123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
 }
