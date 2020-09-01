@@ -2,10 +2,17 @@ Telegrab is easy-to-use C++11 library for Telegram Bot API.
 
 The library itself consists of a single header file [telegrab.hpp](https://github.com/krupakov/telegrab/blob/master/telegrab.hpp).
 
+* [Multithreading support and cURL dependency](#multithreading-support-and-curl-dependency)
 * [Dependencies](#dependencies)
 * [Compilation](#compilation)
 * [Examples](#examples)
 * [Basic methods and data](#basic-methods-and-data)
+
+# Multithreading support and cURL dependency
+
+If multithreading is important for your project, you can switch to a [different version of this library](https://github.com/krupakov/telegrab-curl) which uses [cURL](https://github.com/curl/curl) instead of yhirose::cpp-httplib.
+
+NOTE: yhirose::cpp-httplib is a 'blocking' HTTP library, so it does not support multithreading
 
 # Dependencies
 
