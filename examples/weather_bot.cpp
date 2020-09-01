@@ -161,7 +161,7 @@ void Telegrab::Instructions(incoming data)
 
 int main()
 {
-	Telegrab bot("791561486:AAFR73FuCyoIiNbuVARo5Iu_F8Cys2_5hWU");
+	Telegrab bot("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
 	bot.start();
 
 	return 0;
