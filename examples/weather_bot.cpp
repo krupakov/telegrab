@@ -1,4 +1,3 @@
-#include <cctype>
 #include "telegrab.hpp"
 
 #define OPEN_WEATHER_MAP_API_KEY "XXX"
