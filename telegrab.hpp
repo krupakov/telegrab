@@ -388,6 +388,8 @@ void Telegrab::send(content message, unsigned int chat_id, unsigned int reply_to
 
 			std::string serialized = keyboard.dump();
 			params.emplace("reply_markup", serialized);
+			
+			rkeyboard = true;
 		}
 		if (message.hide_reply_keyboard.hide == true && !rkeyboard)
 		{
