@@ -31,7 +31,7 @@ sudo make install
 
 Compile using g++ version 4.8 or higher:
 
-`g++ -std=c++11 main.cpp -lssl -lcrypto`
+`g++ -std=c++11 main.cpp -lssl -lcrypto -pthread`
 
 # Examples
 
