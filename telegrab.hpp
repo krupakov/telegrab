@@ -34,6 +34,9 @@ SOFTWARE.
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <thread>
+#include <future>
+#include <mutex>
 #include <dirent.h>
 #include "httplib.h"
 #include "json.hpp"
@@ -110,6 +113,8 @@ private:
 	bool waitForUpdates();
 
 	bool fatalError;
+
+	std::mutex mtx;
 };
 
 Telegrab::Telegrab(std::string str):fatalError(false), last_update_id(0), last_file_id(0)
@@ -158,8 +163,8 @@ Telegrab::Telegrab(std::string str):fatalError(false), last_update_id(0), last_f
 					temp["token"] = str;
 					temp["polling"]["limit"] = 100; limit = 100;
 					temp["polling"]["interval"] = 0; interval = 0;
-					temp["polling"]["timeout"] = 10; timeout = 10;
-					temp["polling"]["retryTimeout"] = 30; retryTimeout = 30;
+					temp["polling"]["timeout"] = 30; timeout = 30;
+					temp["polling"]["retryTimeout"] = 10; retryTimeout = 10;
 					file << temp;
 					file.close();
 				}
@@ -314,7 +319,8 @@ bool Telegrab::waitForUpdates()
 				}
 			}
 
-			Instructions(message_data);
+			std::thread msg(&Telegrab::Instructions, this, message_data);
+			msg.detach();
 		}
 	}
 	return true;
@@ -701,8 +707,10 @@ std::string Telegrab::download(std::string given)
 	/* Check if the given string is a link (file_id doesn't contain dots) */
 	if (given.find(".") != std::string::npos)
 	{
+		mtx.lock();
 		std::string file_path = "downloads/file_" + std::to_string(last_file_id);
 		last_file_id++;
+		mtx.unlock();
 
 		/* Getting domain separated */
 		unsigned int i = 0;
@@ -881,7 +889,9 @@ void Telegrab::start()
 		std::cout << "\tChecking for updates..." << std::endl;
 		while (true)
 		{
-			if (!waitForUpdates())
+			auto check = std::async(&Telegrab::waitForUpdates, this);
+			bool result = check.get();
+			if (!result)
 			{
 				std::cerr << "\t| Error! Failed to connect. Reconnecting in " << retryTimeout << " seconds..." << std::endl;
 				if (retryTimeout > 0)
