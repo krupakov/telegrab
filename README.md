@@ -10,9 +10,9 @@ The library itself consists of a single header file [telegrab.hpp](https://githu
 
 # Multithreading support and cURL dependency
 
-If multithreading is important for your project, you can switch to a [different version of this library](https://github.com/krupakov/telegrab-curl) which uses [cURL](https://github.com/curl/curl) instead of yhirose::cpp-httplib.
+NOTE: This library does not support multithreading because I still can't get it to work correctly with yhirose::cpp-httplib.
 
-NOTE: yhirose::cpp-httplib is a 'blocking' HTTP library, so it does not support multithreading
+If multithreading is important for your project, you can switch to a [different version of this library](https://github.com/krupakov/telegrab-curl) which uses [cURL](https://github.com/curl/curl) instead of yhirose::cpp-httplib.
 
 # Dependencies
 
